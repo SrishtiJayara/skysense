@@ -1,0 +1,322 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SkySense</title>
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+  <!-- Full-screen weather canvas background -->
+  <canvas id="bgCanvas"></canvas>
+
+  <div class="app">
+
+    <!-- Header -->
+    <header class="header">
+      <div class="header-left">
+        <span class="app-icon">⛅</span>
+        <span class="app-title">SkySense</span>
+      </div>
+      <div class="header-right">
+        <button class="unit-toggle" id="unitToggle">°F</button>
+        <button class="compare-btn" id="compareBtn" title="Compare two cities">⚖️ Compare</button>
+        <button class="geo-btn" id="geoBtn" title="Auto-detect my location">📍</button>
+        <button class="map-btn" id="mapBtn" title="Pick location on map">🗺️</button>
+        <button class="settings-btn" id="settingsBtn" title="API Settings">⚙️</button>
+      </div>
+    </header>
+
+    <!-- Search -->
+    <section class="search-section">
+      <div class="search-box">
+        <input type="text" id="searchInput" placeholder="Search city..." autocomplete="off" />
+        <button id="searchBtn">Search</button>
+      </div>
+      <ul class="suggestions" id="suggestions"></ul>
+    </section>
+
+    <!-- Status -->
+    <div class="status-msg" id="statusMsg"></div>
+
+    <!-- Loading Overlay -->
+    <div class="loading-overlay" id="loadingOverlay">
+      <div class="lo-bg" id="loBg"></div>
+      <div class="lo-scene" id="loScene"></div>
+      <div class="lo-content">
+        <div class="lo-city" id="loCity"></div>
+        <div class="lo-spinner">
+          <div class="lo-ring"></div>
+          <div class="lo-ring lo-ring-2"></div>
+          <div class="lo-ring lo-ring-3"></div>
+        </div>
+        <div class="lo-label">Fetching live weather</div>
+        <div class="lo-dots"><span></span><span></span><span></span><span></span></div>
+      </div>
+    </div>
+
+    <!-- Welcome Screen -->
+    <div class="welcome-screen" id="welcomeScreen">
+      <div class="welcome-hero">
+        <div class="welcome-anim">⛅</div>
+        <h1 class="welcome-title">Real-Time Weather<br><span class="welcome-title-accent">Anywhere</span></h1>
+        <p class="welcome-sub">Search a city, tap 📍 to auto-detect, or 🗺️ to drop a pin on the map</p>
+        <div class="welcome-badges">
+          <span class="wb">🌍 Global coverage</span>
+          <span class="wb">⚡ Real-time data</span>
+          <span class="wb">🎯 GPS accurate</span>
+          <span class="wb">🤖 AI powered</span>
+        </div>
+      </div>
+      <div class="quick-cities">
+        <p class="quick-label">Popular cities</p>
+        <div class="quick-grid">
+          <button class="quick-btn" data-name="New Delhi"  data-lat="28.6139"  data-lon="77.2090">🇮🇳 New Delhi</button>
+          <button class="quick-btn" data-name="Mumbai"     data-lat="19.0760"  data-lon="72.8777">🇮🇳 Mumbai</button>
+          <button class="quick-btn" data-name="Bangalore"  data-lat="12.9716"  data-lon="77.5946">🇮🇳 Bangalore</button>
+          <button class="quick-btn" data-name="Dehradun"   data-lat="30.3165"  data-lon="78.0322">🏔️ Dehradun</button>
+          <button class="quick-btn" data-name="London"     data-lat="51.5074"  data-lon="-0.1278">🇬🇧 London</button>
+          <button class="quick-btn" data-name="New York"   data-lat="40.7128"  data-lon="-74.0060">🇺🇸 New York</button>
+          <button class="quick-btn" data-name="Tokyo"      data-lat="35.6762"  data-lon="139.6503">🇯🇵 Tokyo</button>
+          <button class="quick-btn" data-name="Dubai"      data-lat="25.2048"  data-lon="55.2708">🇦🇪 Dubai</button>
+        </div>
+      </div>
+      <div class="welcome-features">
+        <div class="wf-card" data-card="hourly"><span class="wf-icon">🕐</span><span class="wf-title">Hourly forecast</span><span class="wf-desc">Next 24-hour breakdown with rain chance</span></div>
+        <div class="wf-card" data-card="daily"><span class="wf-icon">📅</span><span class="wf-title">7-day forecast</span><span class="wf-desc">Week-ahead highs, lows and conditions</span></div>
+        <div class="wf-card" data-card="details"><span class="wf-icon">🌡️</span><span class="wf-title">Full details</span><span class="wf-desc">UV, humidity, pressure, wind & more</span></div>
+        <div class="wf-card" data-card="ai"><span class="wf-icon">🤖</span><span class="wf-title">AI Assistant</span><span class="wf-desc">Compare cities, plan activities, ask anything</span></div>
+      </div>
+    </div>
+
+    <!-- Main Content -->
+    <main class="content" id="content" style="display:none">
+
+      <!-- Current Weather -->
+      <section class="current-card" id="currentCard">
+        <div class="current-top">
+          <div class="current-location">
+            <h2 id="cityName">—</h2>
+            <p id="countryName">—</p>
+          </div>
+          <div class="current-date-wrap">
+            <div class="current-date" id="currentDate">—</div>
+            <div class="current-updated" id="currentUpdated"></div>
+          </div>
+        </div>
+        <div class="current-main">
+          <div class="current-icon" id="currentIcon">—</div>
+          <div class="current-temp" id="currentTemp">—</div>
+          <div class="current-desc" id="currentDesc">—</div>
+        </div>
+        <div class="current-stats">
+          <div class="stat"><span class="stat-icon">🌡️</span><span class="stat-label">Feels like</span><span class="stat-value" id="feelsLike">—</span></div>
+          <div class="stat"><span class="stat-icon">💧</span><span class="stat-label">Humidity</span><span class="stat-value" id="humidity">—</span></div>
+          <div class="stat"><span class="stat-icon">💨</span><span class="stat-label">Wind</span><span class="stat-value" id="windSpeed">—</span></div>
+          <div class="stat"><span class="stat-icon">🌬️</span><span class="stat-label">Gusts</span><span class="stat-value" id="windGusts">—</span></div>
+          <div class="stat"><span class="stat-icon">☀️</span><span class="stat-label">UV Index</span><span class="stat-value" id="uvIndex">—</span></div>
+          <div class="stat"><span class="stat-icon">👁️</span><span class="stat-label">Visibility</span><span class="stat-value" id="visibility">—</span></div>
+          <div class="stat"><span class="stat-icon">🌅</span><span class="stat-label">Sunrise</span><span class="stat-value" id="sunrise">—</span></div>
+          <div class="stat"><span class="stat-icon">🌇</span><span class="stat-label">Sunset</span><span class="stat-value" id="sunset">—</span></div>
+        </div>
+      </section>
+
+      <!-- Hourly Forecast -->
+      <section class="section-card clickable" id="hourlyCard">
+        <h3 class="section-title">Hourly Forecast <span class="card-location-tag" id="hourlyLocationTag"></span></h3>
+        <div class="hourly-scroll"><div class="hourly-list" id="hourlyList"></div></div>
+      </section>
+
+      <!-- 7-Day Forecast -->
+      <section class="section-card clickable" id="dailyCard">
+        <h3 class="section-title">7-Day Forecast <span class="card-location-tag" id="dailyLocationTag"></span></h3>
+        <div class="daily-list" id="dailyList"></div>
+      </section>
+
+      <!-- More Details -->
+      <section class="section-card clickable" id="detailsCard">
+        <h3 class="section-title">More Details <span class="card-location-tag" id="detailsLocationTag"></span></h3>
+        <div class="extra-grid">
+          <div class="extra-item"><span class="extra-icon">🧭</span><span class="extra-label">Wind Direction</span><span class="extra-value" id="windDir">—</span></div>
+          <div class="extra-item"><span class="extra-icon">📊</span><span class="extra-label">Pressure</span><span class="extra-value" id="pressure">—</span></div>
+          <div class="extra-item"><span class="extra-icon">🌧️</span><span class="extra-label">Precipitation</span><span class="extra-value" id="precipitation">—</span></div>
+          <div class="extra-item"><span class="extra-icon">☁️</span><span class="extra-label">Cloud Cover</span><span class="extra-value" id="cloudCover">—</span></div>
+        </div>
+      </section>
+
+    </main>
+
+    <footer class="footer"></footer>
+  </div>
+
+  <!-- Chatbot -->
+  <button class="chat-fab" id="chatFab" title="Weather AI Assistant">
+    <span class="chat-fab-icon">🤖</span>
+    <span class="chat-fab-label">Ask AI</span>
+  </button>
+
+  <div class="chat-panel" id="chatPanel">
+    <div class="chat-header">
+      <div class="chat-header-left">
+        <span class="chat-header-icon">🤖</span>
+        <div>
+          <div class="chat-header-title">Weather AI</div>
+          <div class="chat-header-sub">Ask about weather, compare cities, plan activities</div>
+        </div>
+      </div>
+      <div class="chat-header-actions">
+        <button class="chat-clear-btn" id="chatClearBtn" title="Clear chat">🗑️</button>
+        <button class="chat-close-btn" id="chatCloseBtn">✕</button>
+      </div>
+    </div>
+    <!-- API Key requirement removed -->
+    <div class="chat-suggestions" id="chatSuggestions">
+      <button class="chat-sugg" data-q="What is the current weather like here?">🌤️ Current conditions</button>
+      <button class="chat-sugg" data-q="Compare weather between Mumbai and Delhi today">⚖️ Compare cities</button>
+      <button class="chat-sugg" data-q="What outdoor activities can I do today based on the weather?">🏃 Activity planner</button>
+      <button class="chat-sugg" data-q="Should I carry an umbrella this week?">☂️ Rain this week?</button>
+    </div>
+    <div class="chat-messages" id="chatMessages"></div>
+    <div class="chat-input-row">
+      <input type="text" id="chatInput" placeholder="Ask about weather, compare cities, plan activities..." />
+      <button class="chat-send-btn" id="chatSendBtn">➤</button>
+    </div>
+  </div>
+
+  <!-- Location Picker Popup (full screen, for welcome feature cards) -->
+  <div class="loc-popup-overlay" id="locPopupOverlay">
+    <div class="loc-popup">
+      <div class="loc-popup-header">
+        <div class="loc-popup-header-left">
+          <span class="loc-popup-icon" id="locPopupIcon">📍</span>
+          <div>
+            <div class="loc-popup-title" id="locPopupTitle">Choose a location</div>
+            <div class="loc-popup-sub" id="locPopupSub">Select a city to view forecast</div>
+          </div>
+        </div>
+        <button class="loc-popup-close" id="locPopupClose">✕</button>
+      </div>
+      <div class="loc-popup-search">
+        <input type="text" id="locPopupInput" placeholder="Search any city..." autocomplete="off" />
+        <button id="locPopupSearchBtn">Search</button>
+      </div>
+      <ul class="loc-popup-suggestions" id="locPopupSuggestions"></ul>
+      <div class="loc-popup-quick">
+        <p class="loc-popup-quick-label">Quick pick</p>
+        <div class="loc-popup-quick-grid">
+          <button class="loc-popup-quick-btn" data-name="New Delhi"  data-lat="28.6139"  data-lon="77.2090">🇮🇳 New Delhi</button>
+          <button class="loc-popup-quick-btn" data-name="Mumbai"     data-lat="19.0760"  data-lon="72.8777">🇮🇳 Mumbai</button>
+          <button class="loc-popup-quick-btn" data-name="Bangalore"  data-lat="12.9716"  data-lon="77.5946">🇮🇳 Bangalore</button>
+          <button class="loc-popup-quick-btn" data-name="Dehradun"   data-lat="30.3165"  data-lon="78.0322">🏔️ Dehradun</button>
+          <button class="loc-popup-quick-btn" data-name="London"     data-lat="51.5074"  data-lon="-0.1278">🇬🇧 London</button>
+          <button class="loc-popup-quick-btn" data-name="New York"   data-lat="40.7128"  data-lon="-74.0060">🇺🇸 New York</button>
+          <button class="loc-popup-quick-btn" data-name="Tokyo"      data-lat="35.6762"  data-lon="139.6503">🇯🇵 Tokyo</button>
+          <button class="loc-popup-quick-btn" data-name="Dubai"      data-lat="25.2048"  data-lon="55.2708">🇦🇪 Dubai</button>
+          <button class="loc-popup-quick-btn" data-name="Paris"      data-lat="48.8566"  data-lon="2.3522">🇫🇷 Paris</button>
+          <button class="loc-popup-quick-btn" data-name="Singapore"  data-lat="1.3521"   data-lon="103.8198">🇸🇬 Singapore</button>
+          <button class="loc-popup-quick-btn" data-name="Sydney"     data-lat="-33.8688" data-lon="151.2093">🇦🇺 Sydney</button>
+          <button class="loc-popup-quick-btn" data-name="Kolkata"    data-lat="22.5726"  data-lon="88.3639">🇮🇳 Kolkata</button>
+        </div>
+      </div>
+      <div class="loc-popup-or">
+        <span>or</span>
+      </div>
+      <button class="loc-popup-map-btn" id="locPopupMapBtn">🗺️ Pick on Map</button>
+    </div>
+  </div>
+
+  <!-- Compare Cities Modal -->
+  <div class="cmp-overlay" id="cmpOverlay">
+    <div class="cmp-modal">
+
+      <div class="cmp-header">
+        <div class="cmp-header-left">
+          <span class="cmp-header-icon">⚖️</span>
+          <div>
+            <div class="cmp-header-title">Compare Cities</div>
+            <div class="cmp-header-sub">Side-by-side weather comparison with AI recommendations</div>
+          </div>
+        </div>
+        <button class="cmp-close" id="cmpClose">✕</button>
+      </div>
+
+      <!-- City Pickers -->
+      <div class="cmp-pickers">
+        <div class="cmp-picker" id="cmpPickerA">
+          <div class="cmp-picker-label">City A</div>
+          <div class="cmp-picker-search">
+            <input type="text" id="cmpInputA" placeholder="Search city A..." autocomplete="off" />
+            <button class="cmp-picker-btn" id="cmpSearchA">Search</button>
+          </div>
+          <ul class="cmp-sugg hidden" id="cmpSuggA"></ul>
+          <div class="cmp-selected-city" id="cmpSelectedA">
+            <span class="cmp-city-placeholder">No city selected</span>
+          </div>
+        </div>
+
+        <div class="cmp-vs">VS</div>
+
+        <div class="cmp-picker" id="cmpPickerB">
+          <div class="cmp-picker-label">City B</div>
+          <div class="cmp-picker-search">
+            <input type="text" id="cmpInputB" placeholder="Search city B..." autocomplete="off" />
+            <button class="cmp-picker-btn" id="cmpSearchB">Search</button>
+          </div>
+          <ul class="cmp-sugg hidden" id="cmpSuggB"></ul>
+          <div class="cmp-selected-city" id="cmpSelectedB">
+            <span class="cmp-city-placeholder">No city selected</span>
+          </div>
+        </div>
+      </div>
+
+      <button class="cmp-go-btn" id="cmpGoBtn" disabled>Compare Now ⚡</button>
+
+      <!-- Results -->
+      <div class="cmp-results hidden" id="cmpResults">
+
+        <!-- Stats comparison -->
+        <div class="cmp-cards" id="cmpCards"></div>
+
+        <!-- Stat bars -->
+        <div class="cmp-bars" id="cmpBars"></div>
+
+        <!-- AI Recommendations -->
+        <div class="cmp-reco" id="cmpReco">
+          <div class="cmp-reco-header">
+            <span>🤖 AI Recommendations</span>
+            <div class="cmp-reco-loading hidden" id="cmpRecoLoading">
+              <div class="typing-dot"></div><div class="typing-dot"></div><div class="typing-dot"></div>
+            </div>
+          </div>
+          <div class="cmp-reco-body" id="cmpRecoBody">Hit Compare Now to get AI recommendations.</div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Map Picker Modal -->
+  <div class="map-modal" id="mapModal">
+    <div class="map-modal-inner">
+      <div class="map-modal-header">
+        <span class="map-modal-title">📍 Pick your location</span>
+        <span class="map-modal-hint">Click anywhere on the map to select</span>
+        <button class="map-modal-close" id="mapModalClose">✕</button>
+      </div>
+      <div id="mapContainer"></div>
+      <div class="map-modal-footer">
+        <div class="map-selected-info" id="mapSelectedInfo">No location selected yet</div>
+        <button class="map-confirm-btn" id="mapConfirmBtn" disabled>Confirm Location</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+  <script src="config.js"></script>
+  <script src="weather-api.js"></script>
+  <script src="api-manager.js"></script>
+  <script src="app.js"></script>
+</body>
+</html>
