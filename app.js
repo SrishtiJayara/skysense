@@ -798,38 +798,31 @@ function stopLoadingAnimation() {
 //  SECTION 7 — LOAD WEATHER
 // ================================================================
 async function loadWeather(lat, lon, name, country) {
-  // Always resolve the exact location name from coordinates for accuracy
   let resolvedName = name;
   let resolvedCountry = country;
   
   startLoadingAnimation(name || 'Location');
-  showStatus('Loading weather data…');
   
   try {
-    // 1. Fetch weather data using exact coordinates
-    const data = await fetchWeather(lat, lon);
+    // Fetch weather and reverse geocode AT THE SAME TIME (faster)
+    const [data, geo] = await Promise.all([
+      fetchWeather(lat, lon),
+      reverseGeocode(lat, lon).catch(() => ({ name, country }))
+    ]);
     
-    // 2. Reverse geocode to get the most accurate location title/description
-    try {
-      const geo = await reverseGeocode(lat, lon);
-      resolvedName = geo.name;
-      resolvedCountry = geo.country;
-    } catch (e) {
-      console.warn('Reverse geocoding failed, using provided names', e);
-    }
+    resolvedName = geo.name || name;
+    resolvedCountry = geo.country || country;
 
     currentLocation = { lat, lon, name: resolvedName, country: resolvedCountry };
-    
-    // 3. Render the weather with the resolved location details
     renderWeather(data, resolvedName, resolvedCountry);
-    clearStatus();
   } catch (e) {
     console.error('Weather fetch error:', e);
-    showStatus('Failed to load weather. Please try again.', true);
+    showStatus('Failed to load weather.', true);
   } finally {
     stopLoadingAnimation();
   }
 }
+
 
 // ================================================================
 //  SECTION 8 — SEARCH & AUTOCOMPLETE
