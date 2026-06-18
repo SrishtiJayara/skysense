@@ -319,4 +319,15 @@
   <script src="api-manager.js"></script>
   <script src="app.js"></script>
 </body>
+  <script>
+  const CORS_PROXY = 'https://api.allorigins.win/raw?url=';
+  const originalFetch = window.fetch;
+  window.fetch = function(url, options ) {
+    if (typeof url === 'string' && url.includes('open-meteo.com')) {
+      url = CORS_PROXY + encodeURIComponent(url);
+    }
+    return originalFetch.call(this, url, options);
+  };
+</script>
+
 </html>
