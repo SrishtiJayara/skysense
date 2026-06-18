@@ -133,58 +133,230 @@ function applyWeatherTheme(weatherCode, isDay) {
   else                                bgSceneCloudy(isDay);
 }
 
-function bgSceneSun() {
-  const shimmer = Array.from({length:60}, () => ({
-    x: rnd(0,1), y: rnd(0,1), r: rnd(1,4), sp: rnd(0.0002,0.0007),
-    op: rnd(0.15,0.6), ph: rnd(0,Math.PI*2)
+function bgSceneClearDay() {
+  // Clouds with parallax effect
+  const clouds = Array.from({length: 8}, (_,i) => ({
+    x: rnd(-0.2, 1.2),
+    y: rnd(0.05, 0.4),
+    w: rnd(0.15, 0.35),
+    h: rnd(0.08, 0.18),
+    sp: rnd(0.00003, 0.00008),
+    op: rnd(0.08, 0.16),
+    layer: i % 3,
+    depth: i % 3 // 0 = far, 1 = mid, 2 = near
   }));
-  const waves = Array.from({length:6}, (_,i) => ({
-    y: 0.5 + i*0.09, sp: rnd(0.0003,0.0008), ph: rnd(0,Math.PI*2)
+
+  // Floating dust particles
+  const dust = Array.from({length: 60}, () => ({
+    x: rnd(0, 1),
+    y: rnd(0, 1),
+    r: rnd(0.3, 1.5),
+    sp: rnd(0.00008, 0.0002),
+    ph: rnd(0, Math.PI * 2),
+    op: rnd(0.02, 0.08),
+    vx: rnd(-0.0001, 0.0001),
+    vy: rnd(-0.00005, 0.00005)
   }));
+
+  // Light rays
+  const rays = Array.from({length: 12}, (_, i) => ({
+    angle: (i / 12) * Math.PI * 2,
+    length: rnd(0.3, 0.6),
+    op: rnd(0.03, 0.08),
+    width: rnd(2, 6)
+  }));
+
   let t = 0;
+
   const draw = () => {
-    const w = bgCanvas.width, h = bgCanvas.height;
-    const bg = bgCtx.createLinearGradient(0,0,0,h);
-    bg.addColorStop(0,'#071422'); bg.addColorStop(0.5,'#0a2235'); bg.addColorStop(1,'#06202B');
-    bgCtx.fillStyle = bg; bgCtx.fillRect(0,0,w,h);
-    const cx = w*0.5, cy = h*0.2, sr = Math.min(w,h)*0.17;
-    for (let i = 4; i > 0; i--) {
-      const gg = bgCtx.createRadialGradient(cx,cy,sr*0.3,cx,cy,sr*(1+i*1.1));
-      gg.addColorStop(0, `rgba(253,200,80,${0.055*i})`); gg.addColorStop(1,'rgba(253,200,80,0)');
-      bgCtx.fillStyle = gg; bgCtx.beginPath(); bgCtx.arc(cx,cy,sr*(1+i*1.1),0,Math.PI*2); bgCtx.fill();
-    }
-    for (let i = 0; i < 14; i++) {
-      const a = (i/14)*Math.PI*2 + t*0.25, pulse = 1 + Math.sin(t*1.2+i)*0.08;
-      const r1 = sr*1.2*pulse, r2 = sr*(2.4+Math.sin(t+i*0.6)*0.3)*pulse;
-      bgCtx.save(); bgCtx.translate(cx,cy); bgCtx.rotate(a);
+    const w = bgCanvas.width;
+    const h = bgCanvas.height;
+
+    // ===== BACKGROUND GRADIENT =====
+    const bg = bgCtx.createLinearGradient(0, 0, 0, h);
+    bg.addColorStop(0, '#1a4d5c');      // Top - deeper teal
+    bg.addColorStop(0.4, '#2d7a8f');    // Mid - medium teal
+    bg.addColorStop(0.8, '#4a9fb5');    // Lower - lighter teal
+    bg.addColorStop(1, '#5ab5cc');      // Bottom - light sky
+    bgCtx.fillStyle = bg;
+    bgCtx.fillRect(0, 0, w, h);
+
+    // ===== SUN POSITION (RIGHT SIDE) =====
+    const sunX = w * 0.75;  // 75% from left (right side)
+    const sunY = h * 0.2;   // 20% from top
+    const sunRadius = Math.min(w, h) * 0.08;
+
+    // ===== LIGHT RAYS FROM SUN =====
+    rays.forEach((ray, idx) => {
+      const rayX = sunX + Math.cos(ray.angle + t * 0.3) * sunRadius * 1.5;
+      const rayY = sunY + Math.sin(ray.angle + t * 0.3) * sunRadius * 1.5;
+      
+      const rayGradient = bgCtx.createLinearGradient(
+        sunX, sunY,
+        rayX + Math.cos(ray.angle) * w * ray.length,
+        rayY + Math.sin(ray.angle) * h * ray.length
+      );
+      
+      rayGradient.addColorStop(0, `rgba(253, 235, 158, ${ray.op + Math.sin(t * 0.8 + idx) * 0.02})`);
+      rayGradient.addColorStop(1, 'rgba(253, 235, 158, 0)');
+      
+      bgCtx.strokeStyle = rayGradient;
+      bgCtx.lineWidth = ray.width;
       bgCtx.beginPath();
-      bgCtx.moveTo(r1*Math.cos(-0.05), r1*Math.sin(-0.05));
-      bgCtx.lineTo(r2, 0);
-      bgCtx.lineTo(r1*Math.cos(0.05), r1*Math.sin(0.05));
-      bgCtx.closePath();
-      bgCtx.fillStyle = `rgba(253,225,100,${0.09+Math.sin(t+i)*0.025})`;
-      bgCtx.fill(); bgCtx.restore();
+      bgCtx.moveTo(sunX, sunY);
+      bgCtx.lineTo(
+        sunX + Math.cos(ray.angle) * w * ray.length,
+        sunY + Math.sin(ray.angle) * h * ray.length
+      );
+      bgCtx.stroke();
+    });
+
+    // ===== SUN GLOW LAYERS =====
+    for (let i = 4; i > 0; i--) {
+      const glowRadius = sunRadius * (1 + i * 1.2);
+      const glowGradient = bgCtx.createRadialGradient(
+        sunX - sunRadius * 0.2,
+        sunY - sunRadius * 0.2,
+        sunRadius * 0.3,
+        sunX,
+        sunY,
+        glowRadius
+      );
+      
+      const glowAlpha = 0.045 * i + Math.sin(t * 0.6) * 0.015;
+      glowGradient.addColorStop(0, `rgba(253, 200, 80, ${glowAlpha})`);
+      glowGradient.addColorStop(1, 'rgba(253, 200, 80, 0)');
+      
+      bgCtx.fillStyle = glowGradient;
+      bgCtx.beginPath();
+      bgCtx.arc(sunX, sunY, glowRadius, 0, Math.PI * 2);
+      bgCtx.fill();
     }
-    const sg = bgCtx.createRadialGradient(cx-sr*0.2,cy-sr*0.2,0,cx,cy,sr);
-    sg.addColorStop(0,'rgba(255,252,210,0.98)'); sg.addColorStop(0.5,'rgba(253,210,60,0.9)'); sg.addColorStop(1,'rgba(220,160,20,0.7)');
-    bgCtx.beginPath(); bgCtx.arc(cx,cy,sr,0,Math.PI*2); bgCtx.fillStyle = sg; bgCtx.fill();
-    waves.forEach(wv => {
-      const py = wv.y*h + Math.sin(t*0.8+wv.ph)*h*0.015;
-      const wg = bgCtx.createLinearGradient(0,py,0,py+h*0.04);
-      wg.addColorStop(0,'rgba(253,200,80,0)');
-      wg.addColorStop(0.4, `rgba(253,200,80,${0.035+Math.sin(t*0.6+wv.ph)*0.018})`);
-      wg.addColorStop(1,'rgba(253,200,80,0)');
-      bgCtx.fillStyle = wg; bgCtx.fillRect(0,py,w,h*0.04);
-      wv.y += wv.sp; if (wv.y > 1.1) wv.y = -0.05;
+
+    // ===== SUN CORONA (ANIMATED RAYS) =====
+    for (let i = 0; i < 16; i++) {
+      const angle = (i / 16) * Math.PI * 2 + t * 0.25;
+      const pulse = 1 + Math.sin(t * 1.2 + i) * 0.1;
+      const r1 = sunRadius * 1.15 * pulse;
+      const r2 = sunRadius * (2.5 + Math.sin(t + i * 0.5) * 0.4) * pulse;
+      
+      bgCtx.save();
+      bgCtx.translate(sunX, sunY);
+      bgCtx.rotate(angle);
+      bgCtx.beginPath();
+      bgCtx.moveTo(r1 * Math.cos(-0.06), r1 * Math.sin(-0.06));
+      bgCtx.lineTo(r2, 0);
+      bgCtx.lineTo(r1 * Math.cos(0.06), r1 * Math.sin(0.06));
+      bgCtx.closePath();
+      bgCtx.fillStyle = `rgba(253, 225, 100, ${0.08 + Math.sin(t + i) * 0.03})`;
+      bgCtx.fill();
+      bgCtx.restore();
+    }
+
+    // ===== MAIN SUN SPHERE =====
+    const sunGradient = bgCtx.createRadialGradient(
+      sunX - sunRadius * 0.25,
+      sunY - sunRadius * 0.25,
+      0,
+      sunX,
+      sunY,
+      sunRadius
+    );
+    sunGradient.addColorStop(0, 'rgba(255, 253, 220, 0.98)');
+    sunGradient.addColorStop(0.5, 'rgba(253, 215, 70, 0.92)');
+    sunGradient.addColorStop(1, 'rgba(230, 170, 30, 0.75)');
+    
+    bgCtx.beginPath();
+    bgCtx.arc(sunX, sunY, sunRadius, 0, Math.PI * 2);
+    bgCtx.fillStyle = sunGradient;
+    bgCtx.fill();
+
+    // ===== CLOUDS (WITH DEPTH) =====
+    clouds.sort((a, b) => a.layer - b.layer).forEach(cloud => {
+      cloud.x += cloud.sp;
+      if (cloud.x > 1.3) cloud.x = -0.3;
+
+      const cloudX = cloud.x * w;
+      const cloudY = cloud.y * h;
+      const cloudW = cloud.w * w;
+      const cloudH = cloud.h * h;
+
+      // Cloud color based on depth
+      let cloudColor;
+      if (cloud.depth === 0) cloudColor = '200, 220, 235'; // Far clouds - lighter
+      else if (cloud.depth === 1) cloudColor = '190, 210, 225'; // Mid clouds
+      else cloudColor = '170, 195, 215'; // Near clouds - darker
+
+      // Draw cloud with 3 ellipses
+      const cloudShapes = [
+        [0.5, 0.55, 0.5, 0.45],
+        [0.25, 0.44, 0.28, 0.38],
+        [0.75, 0.48, 0.26, 0.35]
+      ];
+
+      cloudShapes.forEach(([ex, ey, ew, eh]) => {
+        const cloudGradient = bgCtx.createRadialGradient(
+          cloudX + cloudW * ex,
+          cloudY + cloudH * ey,
+          0,
+          cloudX + cloudW * ex,
+          cloudY + cloudH * ey,
+          cloudW * ew * 1.3
+        );
+
+        cloudGradient.addColorStop(0, `rgba(${cloudColor}, ${cloud.op + 0.02})`);
+        cloudGradient.addColorStop(1, `rgba(${cloudColor}, 0)`);
+
+        bgCtx.fillStyle = cloudGradient;
+        bgCtx.beginPath();
+        bgCtx.ellipse(
+          cloudX + cloudW * ex,
+          cloudY + cloudH * ey,
+          cloudW * ew,
+          cloudH * eh,
+          0,
+          0,
+          Math.PI * 2
+        );
+        bgCtx.fill();
+      });
     });
-    shimmer.forEach(p => {
-      p.y -= p.sp; if (p.y < -0.02) { p.y = 1.02; p.x = rnd(0,1); }
-      const a = (Math.sin(t*1.2+p.ph)*0.5+0.5) * p.op;
-      bgCtx.beginPath(); bgCtx.arc(p.x*w,p.y*h,p.r,0,Math.PI*2);
-      bgCtx.fillStyle = `rgba(253,235,158,${a})`; bgCtx.fill();
+
+    // ===== FLOATING DUST PARTICLES =====
+    dust.forEach(particle => {
+      particle.x += particle.vx;
+      particle.y += particle.vy;
+
+      // Wrap around
+      if (particle.x < -0.05) particle.x = 1.05;
+      if (particle.x > 1.05) particle.x = -0.05;
+      if (particle.y < -0.05) particle.y = 1.05;
+      if (particle.y > 1.05) particle.y = -0.05;
+
+      const dustAlpha = particle.op * (0.5 + Math.sin(t * 0.5 + particle.ph) * 0.5);
+      bgCtx.beginPath();
+      bgCtx.arc(particle.x * w, particle.y * h, particle.r, 0, Math.PI * 2);
+      bgCtx.fillStyle = `rgba(253, 235, 158, ${dustAlpha})`;
+      bgCtx.fill();
     });
-    t += 0.016; bgAnimId = requestAnimationFrame(draw);
-  }; draw();
+
+    // ===== SUBTLE VIGNETTE EFFECT =====
+    const vignetteGradient = bgCtx.createRadialGradient(w * 0.5, h * 0.5, 0, w * 0.5, h * 0.5, Math.max(w, h) * 0.8);
+    vignetteGradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+    vignetteGradient.addColorStop(1, 'rgba(0, 0, 0, 0.15)');
+    bgCtx.fillStyle = vignetteGradient;
+    bgCtx.fillRect(0, 0, w, h);
+
+    t += 0.016;
+    bgAnimId = requestAnimationFrame(draw);
+  };
+
+  draw();
+}
+
+// Helper function (if not already in your code)
+function rnd(min, max) {
+  return Math.random() * (max - min) + min;
 }
 
 function bgSceneNight() {
