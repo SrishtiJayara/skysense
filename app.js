@@ -133,7 +133,7 @@ function applyWeatherTheme(weatherCode, isDay) {
   else                                bgSceneCloudy(isDay);
 }
 
-function bgSceneClearDay() {
+function bgSceneSun() {
   // Clouds with parallax effect and depth layers
   const clouds = Array.from({length: 12}, (_,i) => ({
     x: rnd(-0.2, 1.2),
